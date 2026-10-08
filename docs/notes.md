@@ -29,3 +29,19 @@ the model choice (M/D/c rather than M/M/c; see plan).
 - `metrics.dropped_iterations` appears **only when** k6 had to drop arrivals (VU pool
   exhausted); absent means zero.
 - `state.testRunDurationMs`: wall-clock test duration.
+
+## 2026-10-09: service time at zero load (`scripts/service_time.py`)
+
+100 sequential requests to `/delay/0.05` (one at a time, 50 ms pause between them, after 5
+warm-up requests), so no request ever waited for a worker:
+
+| Statistic | Latency |
+|-----------|---------|
+| mean | 57.80 ms |
+| min | 52.12 ms |
+| median | 57.20 ms |
+| max | 71.69 ms |
+
+Raw samples: `results/service_time.csv`. The 50 ms sleep plus ~7.8 ms of overhead (HTTP,
+Flask routing, the Colima VM's network path) gives a mean service time of ~57.8 ms, i.e.
+**mu ~ 17.3 requests/s per worker** and a capacity of ~69 requests/s with 4 workers.
