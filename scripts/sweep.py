@@ -4,9 +4,11 @@
     python scripts/sweep.py --rates 10 40 --reps 1 --duration 20s
     python scripts/sweep.py --dry-run             # print the k6 commands only
 
-Summaries land in results/raw/c<workers>_rate<r>_rep<i>.json.
+Summaries land in results/raw/c<workers>_rate<r>_rep<i>.json, and one row per run is
+appended to results/raw/runs.csv.
 """
 import argparse
+import csv
 import pathlib
 import subprocess
 import sys
@@ -14,6 +16,19 @@ import sys
 import yaml
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+from src.k6summary import FIELDS, load_summary, parse_summary  # noqa: E402
+
+RUN_FIELDS = ["workers", "endpoint", "target_rps", "rep"] + FIELDS
+
+
+def append_row(path: pathlib.Path, row: dict) -> None:
+    new = not path.exists()
+    with open(path, "a", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=RUN_FIELDS)
+        if new:
+            writer.writeheader()
+        writer.writerow(row)
 
 
 def k6_command(base_url: str, endpoint: str, rate: float, duration: str, out: pathlib.Path) -> list[str]:
@@ -53,6 +68,9 @@ def main() -> None:
             if result.returncode not in (0, 99):    # 99 = thresholds crossed; still a valid run
                 print(result.stderr, file=sys.stderr)
                 raise SystemExit(f"k6 failed at rate {rate}")
+            row = {"workers": svc["workers"], "endpoint": svc["endpoint"], "target_rps": rate, "rep": rep}
+            row.update(parse_summary(load_summary(out)))
+            append_row(out_dir / "runs.csv", row)
 
 
 if __name__ == "__main__":
