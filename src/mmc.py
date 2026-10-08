@@ -59,3 +59,39 @@ def wait_tail(t: float, lam: float, mu: float, c: int) -> float:
     if t < 0:
         return 1.0
     return erlang_c(c, lam / mu) * math.exp(-(c * mu - lam) * t)
+
+
+def response_tail(t: float, lam: float, mu: float, c: int) -> float:
+    """P(T > t) for the response time T = Wq + S, with S ~ Exp(mu) independent of Wq.
+
+    P(T > t) = e^{-mu t} + C * mu / (c mu - lam - mu) * (e^{-mu t} - e^{-(c mu - lam) t}),
+    with the limit e^{-mu t} (1 + C mu t) when c mu - lam = mu. For c = 1 this reduces to
+    the M/M/1 result e^{-(mu - lam) t}.
+    """
+    check_stable(lam, mu, c)
+    if t < 0:
+        return 1.0
+    pw = erlang_c(c, lam / mu)
+    gap = c * mu - lam - mu
+    if abs(gap) < 1e-12 * mu:
+        return math.exp(-mu * t) * (1 + pw * mu * t)
+    return math.exp(-mu * t) + pw * mu / gap * (math.exp(-mu * t) - math.exp(-(c * mu - lam) * t))
+
+
+def response_quantile(p: float, lam: float, mu: float, c: int) -> float:
+    """The p-quantile of response time (e.g. p=0.95 for p95), by bisection on response_tail."""
+    if not 0 < p < 1:
+        raise ValueError("p must be in (0, 1)")
+    target = 1 - p
+    lo, hi = 0.0, 1.0 / mu
+    while response_tail(hi, lam, mu, c) > target:
+        hi *= 2
+    for _ in range(200):
+        mid = (lo + hi) / 2
+        if response_tail(mid, lam, mu, c) > target:
+            lo = mid
+        else:
+            hi = mid
+        if hi - lo < 1e-12 * hi:
+            break
+    return (lo + hi) / 2
