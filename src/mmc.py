@@ -4,6 +4,9 @@ Notation follows Harchol-Balter (2013), ch. 14:
     a   = lam / mu          offered load, in "busy servers"
     rho = lam / (c * mu)    per-server utilisation; the queue is stable only if rho < 1
 """
+import math
+
+
 def utilisation(lam: float, mu: float, c: int) -> float:
     return lam / (c * mu)
 
@@ -48,3 +51,11 @@ def mean_wait(lam: float, mu: float, c: int) -> float:
 def mean_response(lam: float, mu: float, c: int) -> float:
     """Mean time in system, E[W] = E[Wq] + 1/mu."""
     return mean_wait(lam, mu, c) + 1 / mu
+
+
+def wait_tail(t: float, lam: float, mu: float, c: int) -> float:
+    """P(Wq > t): the queueing delay is 0 with prob 1 - C, else exponential with rate c*mu - lam."""
+    check_stable(lam, mu, c)
+    if t < 0:
+        return 1.0
+    return erlang_c(c, lam / mu) * math.exp(-(c * mu - lam) * t)
