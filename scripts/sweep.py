@@ -16,6 +16,7 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from src.config import load_config, resolve  # noqa: E402
+from src.grid import rate_grid  # noqa: E402
 from src.k6summary import FIELDS, load_summary, parse_summary  # noqa: E402
 
 RUN_FIELDS = ["workers", "endpoint", "target_rps", "rep"] + FIELDS
@@ -47,7 +48,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    parser.add_argument("--rates", type=float, nargs="+", default=cfg["sweep"]["rates"])
+    grid = rate_grid(cfg["sweep"]["service_time_s"], cfg["service"]["workers"], cfg["sweep"]["utilisations"])
+    parser.add_argument("--rates", type=float, nargs="+", default=grid)
     parser.add_argument("--reps", type=int, default=cfg["sweep"]["repetitions"])
     parser.add_argument("--duration", default=cfg["sweep"]["duration"])
     parser.add_argument("--dry-run", action="store_true")
