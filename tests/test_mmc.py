@@ -1,6 +1,6 @@
 import pytest
 
-from src.mmc import erlang_c, mean_response, mean_wait, utilisation
+from src.mmc import erlang_b, erlang_c, mean_response, mean_wait, utilisation
 
 
 def test_utilisation():
@@ -41,3 +41,30 @@ def test_wait_grows_sharply_near_saturation():
 def test_unstable_load_raises(lam):
     with pytest.raises(ValueError, match="unstable"):
         mean_wait(lam=lam, mu=20, c=4)
+
+
+def erlang_c_exact(c: int, a: int) -> float:
+    """Textbook Erlang C in exact rational arithmetic, as a reference for integer loads."""
+    from fractions import Fraction
+    from math import factorial
+
+    top = Fraction(a ** c, factorial(c)) * Fraction(c, c - a)
+    bottom = sum(Fraction(a ** k, factorial(k)) for k in range(c)) + top
+    return float(top / bottom)
+
+
+@pytest.mark.parametrize("c, a", [(1, 0), (2, 1), (8, 6), (64, 60), (64, 32)])
+def test_erlang_c_matches_exact_formula(c, a):
+    assert erlang_c(c, float(a)) == pytest.approx(erlang_c_exact(c, a), rel=1e-12)
+
+
+def test_large_c_does_not_overflow():
+    # a**c / c! overflows a float for c in the hundreds; the recursion must not.
+    p = erlang_c(500, 480.0)
+    assert 0 < p < 1
+    assert erlang_c(500, 480.0) == pytest.approx(erlang_c_exact(500, 480), rel=1e-9)
+
+
+def test_erlang_b_known_value():
+    # c = 2, a = 1: B = (1/2) / (1 + 1 + 1/2) = 0.2
+    assert erlang_b(2, 1.0) == pytest.approx(0.2)
