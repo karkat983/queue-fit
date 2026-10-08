@@ -35,4 +35,10 @@ The rate sweep, model fit and plots are *planned*. The load test has not been ru
 No external data; all measurements come from load tests run locally against open-source software (httpbin, k6). Not affiliated with any employer. Built October 2026.
 
 ## Changelog
-- Day 1: project scaffold and changelog.
+- Day 1: project scaffold and changelog; k6 script; first M/M/c code.
+- Native arm64 httpbin image with 4 gunicorn sync workers; health check; first k6 run (docs/notes.md).
+- Sweep runner and k6-summary parser recording throughput, errors and latency percentiles.
+- Makefile, pytest config, ruff, CI, config loader.
+- Queueing core: stable Erlang B/C, waiting- and response-time tails, p95 by inversion,
+  utilisation helpers; a discrete-event simulator that confirms them; Allen-Cunneen and
+  M/D/c for non-exponential service (docs/model.md).
