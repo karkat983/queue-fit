@@ -35,7 +35,7 @@ def main() -> None:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     parser.add_argument("--n", type=int, default=100)
-    parser.add_argument("--endpoint", default=cfg["service"]["endpoint"])
+    parser.add_argument("--endpoint", default=f"/delay/{cfg['service']['mean_delay_s']}")
     parser.add_argument("--out", default="results/service_time.csv")
     args = parser.parse_args()
 

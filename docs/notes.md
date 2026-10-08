@@ -66,3 +66,10 @@ A 20 req/s check run gave p50 = 51.8 ms, about 6 ms below the 57.8 ms measured w
 `urllib` requests. k6 reuses keep-alive connections while the sequential script opens a new TCP
 connection per request, so the connection set-up was part of the earlier "service time". The fit
 therefore estimates μ from low-load k6 runs, which use the same client behaviour as the sweep.
+
+## 2026-10-09: service time for the sweep grid
+
+A 60 s k6 run at 5 req/s (10 s warm-up, 300 measured requests, 0 errors) gave latency
+min 51.9 / mean 55.1 / p50 54.8 / p95 57.8 / max 62.4 ms. The sweep grid now uses
+**55.1 ms -> mu = 18.1/s per worker, capacity 72.6/s with 4 workers**, and every rate is run
+for a 10 s warm-up plus a 60 s measured window.

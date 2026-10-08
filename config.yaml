@@ -3,13 +3,15 @@
 service:
   base_url: http://localhost:8080
   workers: 4                    # ground truth for c; passed to docker compose as WORKERS
-  endpoint: /delay/0.05         # placeholder; endpoint choice is an ADR in the plan
+  mean_delay_s: 0.05            # /delay/<x>: x is constant or Exp(mean) per request (ADR 001)
+  service: constant             # constant | exponential
 
 sweep:
-  # Rates are derived from the measured zero-load service time (docs/notes.md):
-  # 57.8 ms -> mu = 17.3/s per worker -> capacity 69.2/s with 4 workers.
-  service_time_s: 0.0578
+  # Rates are derived from the measured low-load service time (docs/notes.md): a 60 s k6 run
+  # at 5 req/s had mean latency 55.1 ms -> mu = 18.1/s per worker -> capacity 72.6/s (4 workers).
+  service_time_s: 0.0551
   utilisations: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.85, 0.9, 0.95, 1.0, 1.1]
-  duration: 60s
+  duration: 60s                 # measured window per rate (main scenario)
+  warmup: 10s                   # unmeasured warm-up at the same rate before each window
   repetitions: 3
   out_dir: results/raw

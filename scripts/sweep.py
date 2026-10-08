@@ -19,7 +19,7 @@ from src.config import load_config, resolve  # noqa: E402
 from src.grid import rate_grid  # noqa: E402
 from src.k6summary import FIELDS, load_summary, parse_summary  # noqa: E402
 
-RUN_FIELDS = ["workers", "endpoint", "target_rps", "rep"] + FIELDS
+RUN_FIELDS = ["workers", "service", "target_rps", "rep"] + FIELDS
 
 
 def seconds(duration: str) -> float:
@@ -42,13 +42,15 @@ def append_row(path: pathlib.Path, row: dict) -> None:
         writer.writerow(row)
 
 
-def k6_command(base_url: str, endpoint: str, rate: float, duration: str, out: pathlib.Path) -> list[str]:
+def k6_command(base_url: str, rate: float, duration: str, warmup: str, out: pathlib.Path,
+               service: str = "constant") -> list[str]:
     return [
         "k6", "run", "-q",
         "-e", f"BASE_URL={base_url}",
-        "-e", f"ENDPOINT={endpoint}",
         "-e", f"RATE={rate:g}",
         "-e", f"DURATION={duration}",
+        "-e", f"WARMUP={warmup}",
+        "-e", f"SERVICE={service}",
         "-e", f"OUT={out}",
         str(ROOT / "load" / "test.js"),
     ]
@@ -71,8 +73,10 @@ def main() -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     for rep in range(1, args.reps + 1):
         for rate in args.rates:
-            out = out_dir / f"c{svc['workers']}_rate{rate:g}_rep{rep}.json"
-            cmd = k6_command(svc["base_url"], svc["endpoint"], rate, args.duration, out)
+            out = out_dir / f"c{svc['workers']}_{svc['service']}_rate{rate:g}_rep{rep}.json"
+            cmd = k6_command(
+                svc["base_url"], rate, args.duration, cfg["sweep"]["warmup"], out, svc["service"]
+            )
             if args.dry_run:
                 print(" ".join(cmd))
                 continue
@@ -82,7 +86,7 @@ def main() -> None:
             if result.returncode not in (0, 99):    # 99 = thresholds crossed; still a valid run
                 print(result.stderr, file=sys.stderr)
                 raise SystemExit(f"k6 failed at rate {rate}")
-            row = {"workers": svc["workers"], "endpoint": svc["endpoint"], "target_rps": rate, "rep": rep}
+            row = {"workers": svc["workers"], "service": svc["service"], "target_rps": rate, "rep": rep}
             row.update(parse_summary(load_summary(out), main_duration_s=seconds(args.duration)))
             append_row(out_dir / "runs.csv", row)
 
