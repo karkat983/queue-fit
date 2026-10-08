@@ -2,7 +2,16 @@ import math
 
 import pytest
 
-from src.mmc import erlang_b, erlang_c, mean_response, mean_wait, utilisation, wait_tail
+from src.mmc import (
+    erlang_b,
+    erlang_c,
+    mean_response,
+    mean_wait,
+    response_quantile,
+    response_tail,
+    utilisation,
+    wait_tail,
+)
 
 
 def test_utilisation():
@@ -89,3 +98,29 @@ def test_wait_tail_integrates_to_mean_wait():
     values = [wait_tail(i * dt, lam, mu, c) for i in range(n + 1)]
     area = (sum(values) - (values[0] + values[-1]) / 2) * dt
     assert area == pytest.approx(mean_wait(lam, mu, c), rel=1e-3)
+
+
+def test_response_quantile_mm1_closed_form():
+    # M/M/1: T ~ Exp(mu - lam), so the p-quantile is -ln(1 - p) / (mu - lam)
+    lam, mu = 6.0, 10.0
+    assert response_quantile(0.95, lam, mu, 1) == pytest.approx(-math.log(0.05) / (mu - lam), rel=1e-9)
+
+
+def test_response_quantile_inverts_the_tail():
+    lam, mu, c = 70.0, 20.0, 4
+    t95 = response_quantile(0.95, lam, mu, c)
+    assert response_tail(t95, lam, mu, c) == pytest.approx(0.05, rel=1e-9)
+
+
+def test_response_tail_handles_the_degenerate_rate():
+    # c*mu - lam == mu  ->  the closed form's 0/0 case
+    lam, mu, c = 60.0, 20.0, 4
+    near = response_tail(0.1, lam * (1 + 1e-9), mu, c)
+    assert response_tail(0.1, lam, mu, c) == pytest.approx(near, rel=1e-6)
+
+
+def test_p95_rises_steeply_near_saturation():
+    mu, c = 20.0, 4
+    p95 = [response_quantile(0.95, rho * c * mu, mu, c) for rho in (0.5, 0.8, 0.95)]
+    assert p95[0] < p95[1] < p95[2]
+    assert p95[2] > 4 * p95[0]
