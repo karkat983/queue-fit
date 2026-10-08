@@ -126,3 +126,15 @@ def allen_cunneen_wait(lam: float, mu: float, c: int, ca2: float = 1.0, cs2: flo
 
 def allen_cunneen_response(lam: float, mu: float, c: int, ca2: float = 1.0, cs2: float = 1.0) -> float:
     return allen_cunneen_wait(lam, mu, c, ca2, cs2) + 1 / mu
+
+
+def mdc_wait(lam: float, mu: float, c: int) -> float:
+    """Mean queueing delay with constant service (M/D/c), via Allen-Cunneen with cs^2 = 0:
+    half the M/M/c delay. Exact for c = 1 (Pollaczek-Khinchine); an approximation for c > 1,
+    where it slightly overestimates the delay at moderate load.
+    """
+    return allen_cunneen_wait(lam, mu, c, ca2=1.0, cs2=0.0)
+
+
+def mdc_response(lam: float, mu: float, c: int) -> float:
+    return mdc_wait(lam, mu, c) + 1 / mu
