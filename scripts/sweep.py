@@ -13,10 +13,9 @@ import pathlib
 import subprocess
 import sys
 
-import yaml
-
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
+from src.config import load_config, resolve  # noqa: E402
 from src.k6summary import FIELDS, load_summary, parse_summary  # noqa: E402
 
 RUN_FIELDS = ["workers", "endpoint", "target_rps", "rep"] + FIELDS
@@ -44,7 +43,7 @@ def k6_command(base_url: str, endpoint: str, rate: float, duration: str, out: pa
 
 
 def main() -> None:
-    cfg = yaml.safe_load((ROOT / "config.yaml").read_text())
+    cfg = load_config()
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -55,7 +54,7 @@ def main() -> None:
     args = parser.parse_args()
 
     svc = cfg["service"]
-    out_dir = ROOT / cfg["sweep"]["out_dir"]
+    out_dir = resolve(cfg["sweep"]["out_dir"])
     out_dir.mkdir(parents=True, exist_ok=True)
     for rep in range(1, args.reps + 1):
         for rate in args.rates:
