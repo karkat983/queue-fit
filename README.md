@@ -27,4 +27,4 @@ Load tests show latency staying flat and then shooting up, but the point where t
 No external data; all measurements come from load tests run locally against open-source software (httpbin, k6). Not affiliated with any employer. Built October 2026.
 
 ## Changelog
-- Day 1: project scaffold.
+- Day 1: project scaffold and changelog.
