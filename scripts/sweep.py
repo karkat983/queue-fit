@@ -22,6 +22,20 @@ from src.k6summary import FIELDS, load_summary, parse_summary  # noqa: E402
 RUN_FIELDS = ["workers", "service", "target_rps", "rep"] + FIELDS
 
 
+def run_order(rates: list[float], reps: int, seed: int = 0) -> list[tuple[int, float]]:
+    """(rep, rate) pairs: every rate once per repetition, in a fresh shuffled order each time,
+    so slow drift in the machine (thermals, background load) does not line up with the rate."""
+    import random
+
+    rng = random.Random(seed)
+    order = []
+    for rep in range(1, reps + 1):
+        shuffled = list(rates)
+        rng.shuffle(shuffled)
+        order.extend((rep, rate) for rate in shuffled)
+    return order
+
+
 def seconds(duration: str) -> float:
     """k6 duration string ("60s", "2m", "1m30s") to seconds."""
     import re
@@ -71,24 +85,23 @@ def main() -> None:
     svc = cfg["service"]
     out_dir = resolve(cfg["sweep"]["out_dir"])
     out_dir.mkdir(parents=True, exist_ok=True)
-    for rep in range(1, args.reps + 1):
-        for rate in args.rates:
-            out = out_dir / f"c{svc['workers']}_{svc['service']}_rate{rate:g}_rep{rep}.json"
-            cmd = k6_command(
-                svc["base_url"], rate, args.duration, cfg["sweep"]["warmup"], out, svc["service"]
-            )
-            if args.dry_run:
-                print(" ".join(cmd))
-                continue
-            result = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True)
-            line = result.stdout.strip().splitlines()[-1] if result.stdout.strip() else ""
-            print(f"rep {rep} {line}", flush=True)
-            if result.returncode not in (0, 99):    # 99 = thresholds crossed; still a valid run
-                print(result.stderr, file=sys.stderr)
-                raise SystemExit(f"k6 failed at rate {rate}")
-            row = {"workers": svc["workers"], "service": svc["service"], "target_rps": rate, "rep": rep}
-            row.update(parse_summary(load_summary(out), main_duration_s=seconds(args.duration)))
-            append_row(out_dir / "runs.csv", row)
+    for rep, rate in run_order(args.rates, args.reps, cfg["sweep"].get("order_seed", 0)):
+        out = out_dir / f"c{svc['workers']}_{svc['service']}_rate{rate:g}_rep{rep}.json"
+        cmd = k6_command(
+            svc["base_url"], rate, args.duration, cfg["sweep"]["warmup"], out, svc["service"]
+        )
+        if args.dry_run:
+            print(" ".join(cmd))
+            continue
+        result = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True)
+        line = result.stdout.strip().splitlines()[-1] if result.stdout.strip() else ""
+        print(f"rep {rep} {line}", flush=True)
+        if result.returncode not in (0, 99):    # 99 = thresholds crossed; still a valid run
+            print(result.stderr, file=sys.stderr)
+            raise SystemExit(f"k6 failed at rate {rate}")
+        row = {"workers": svc["workers"], "service": svc["service"], "target_rps": rate, "rep": rep}
+        row.update(parse_summary(load_summary(out), main_duration_s=seconds(args.duration)))
+        append_row(out_dir / "runs.csv", row)
 
 
 if __name__ == "__main__":
