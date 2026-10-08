@@ -3,7 +3,9 @@
 # true server count c that the M/M/c fit should recover.
 services:
   httpbin:
-    image: kennethreitz/httpbin
-    command: ["gunicorn", "-b", "0.0.0.0:80", "-w", "${WORKERS:-4}", "-k", "sync", "httpbin:app"]
+    build: ./service
+    image: queue-fit/httpbin:0.10.2
+    environment:
+      WORKERS: ${WORKERS:-4}
     ports:
       - "8080:80"
