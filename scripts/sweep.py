@@ -45,7 +45,9 @@ def k6_command(base_url: str, endpoint: str, rate: float, duration: str, out: pa
 
 def main() -> None:
     cfg = yaml.safe_load((ROOT / "config.yaml").read_text())
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument("--rates", type=float, nargs="+", default=cfg["sweep"]["rates"])
     parser.add_argument("--reps", type=int, default=cfg["sweep"]["repetitions"])
     parser.add_argument("--duration", default=cfg["sweep"]["duration"])

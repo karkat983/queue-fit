@@ -2,7 +2,7 @@
 PYTHON ?= python3
 WORKERS ?= 4
 
-.PHONY: help setup up down health sweep test clean
+.PHONY: help setup up down health sweep lint test clean
 
 help:            ## list targets
 	@grep -E '^[a-z]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-8s %s\n", $$1, $$2}'
@@ -22,6 +22,9 @@ health:          ## check the service answers
 
 sweep: health    ## run the k6 rate sweep from config.yaml
 	$(PYTHON) scripts/sweep.py
+
+lint:            ## ruff lint
+	$(PYTHON) -m ruff check .
 
 test:            ## run unit tests
 	$(PYTHON) -m pytest -q

@@ -2,7 +2,6 @@
 import json
 import pathlib
 
-
 FIELDS = [
     "duration_s", "requests", "throughput_rps", "failed", "error_rate", "dropped",
     "lat_min_ms", "lat_mean_ms", "lat_p50_ms", "lat_p90_ms", "lat_p95_ms", "lat_p99_ms", "lat_max_ms",
