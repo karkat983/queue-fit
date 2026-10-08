@@ -1,0 +1,9 @@
+# Target service: httpbin (open source) under gunicorn with SYNC workers.
+# A sync worker serves one request at a time, so the number of workers is the
+# true server count c that the M/M/c fit should recover.
+services:
+  httpbin:
+    image: kennethreitz/httpbin
+    command: ["gunicorn", "-b", "0.0.0.0:80", "-w", "${WORKERS:-4}", "-k", "sync", "httpbin:app"]
+    ports:
+      - "8080:80"

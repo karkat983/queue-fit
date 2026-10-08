@@ -1,0 +1,12 @@
+# All tunable values live here so a reader can swap them without touching code.
+
+service:
+  base_url: http://localhost:8080
+  workers: 4                    # ground truth for c; passed to docker compose as WORKERS
+  endpoint: /delay/0.05         # placeholder; endpoint choice is an ADR in the plan
+
+sweep:
+  rates: [10, 20, 30, 40, 50, 60, 65, 70, 75, 80, 85]   # requests/s; 4 workers x 20/s = 80/s capacity
+  duration: 60s
+  repetitions: 3
+  out_dir: results/raw
