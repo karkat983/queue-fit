@@ -45,3 +45,12 @@ warm-up requests), so no request ever waited for a worker:
 Raw samples: `results/service_time.csv`. The 50 ms sleep plus ~7.8 ms of overhead (HTTP,
 Flask routing, the Colima VM's network path) gives a mean service time of ~57.8 ms, i.e.
 **mu ~ 17.3 requests/s per worker** and a capacity of ~69 requests/s with 4 workers.
+
+### Variability of the service time
+
+From the same 100 samples: standard deviation 3.63 ms, coefficient of variation 0.063,
+**squared CV cs² = 0.004** (`src/variability.py`). Exponential service would give cs² = 1, so
+the constant-delay endpoint is effectively deterministic: an M/M/c model would overstate the
+queueing delay roughly twofold (Allen-Cunneen factor (ca² + cs²)/2), and M/D/c is the
+better-matched model for this mode. The exponential mode (client-drawn delays) is what tests
+M/M/c itself.
