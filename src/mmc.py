@@ -6,8 +6,19 @@ Notation follows Harchol-Balter (2013), ch. 14:
 """
 import math
 
+__all__ = [
+    "utilisation", "capacity", "rate_at", "is_stable", "check_stable",
+    "erlang_b", "erlang_c", "mean_wait", "mean_response",
+    "wait_tail", "response_tail", "response_quantile",
+    "allen_cunneen_wait", "allen_cunneen_response", "mdc_wait", "mdc_response",
+]
+
+# Units: rates (lam, mu) are per second and times are in seconds throughout, so a mean
+# response of 0.0565 means 56.5 ms.
+
 
 def utilisation(lam: float, mu: float, c: int) -> float:
+    """Per-server utilisation rho = lam / (c * mu)."""
     return lam / (c * mu)
 
 
@@ -22,10 +33,12 @@ def rate_at(rho: float, mu: float, c: int) -> float:
 
 
 def is_stable(lam: float, mu: float, c: int) -> bool:
+    """True when the parameters are valid and rho < 1 (the queue does not grow forever)."""
     return lam >= 0 and mu > 0 and c >= 1 and utilisation(lam, mu, c) < 1
 
 
 def check_stable(lam: float, mu: float, c: int) -> None:
+    """Raise ValueError for invalid parameters or an unstable queue (rho >= 1)."""
     if lam < 0 or mu <= 0 or c < 1:
         raise ValueError(f"need lam >= 0, mu > 0, c >= 1 (got lam={lam}, mu={mu}, c={c})")
     if utilisation(lam, mu, c) >= 1:
@@ -125,6 +138,7 @@ def allen_cunneen_wait(lam: float, mu: float, c: int, ca2: float = 1.0, cs2: flo
 
 
 def allen_cunneen_response(lam: float, mu: float, c: int, ca2: float = 1.0, cs2: float = 1.0) -> float:
+    """Mean response time under Allen-Cunneen: approximate E[Wq] plus the mean service time."""
     return allen_cunneen_wait(lam, mu, c, ca2, cs2) + 1 / mu
 
 
@@ -137,4 +151,5 @@ def mdc_wait(lam: float, mu: float, c: int) -> float:
 
 
 def mdc_response(lam: float, mu: float, c: int) -> float:
+    """Mean response time with constant service time 1/mu."""
     return mdc_wait(lam, mu, c) + 1 / mu

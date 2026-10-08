@@ -161,3 +161,11 @@ def test_invalid_parameters_raise(lam, mu, c):
 def test_every_formula_rejects_rho_at_or_above_one(fn, lam):
     with pytest.raises(ValueError, match="unstable"):
         fn(lam)
+
+
+def test_public_api_is_documented():
+    import inspect
+
+    import src.mmc as mmc
+
+    assert all(inspect.getdoc(getattr(mmc, name)) for name in mmc.__all__)
