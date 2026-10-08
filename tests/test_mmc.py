@@ -1,6 +1,8 @@
+import math
+
 import pytest
 
-from src.mmc import erlang_b, erlang_c, mean_response, mean_wait, utilisation
+from src.mmc import erlang_b, erlang_c, mean_response, mean_wait, utilisation, wait_tail
 
 
 def test_utilisation():
@@ -68,3 +70,22 @@ def test_large_c_does_not_overflow():
 def test_erlang_b_known_value():
     # c = 2, a = 1: B = (1/2) / (1 + 1 + 1/2) = 0.2
     assert erlang_b(2, 1.0) == pytest.approx(0.2)
+
+
+def test_wait_tail_mm1_closed_form():
+    # M/M/1: P(Wq > t) = rho * exp(-(mu - lam) t)
+    lam, mu, t = 6.0, 10.0, 0.3
+    assert wait_tail(t, lam, mu, 1) == pytest.approx(0.6 * math.exp(-(mu - lam) * t))
+
+
+def test_wait_tail_at_zero_is_probability_of_waiting():
+    assert wait_tail(0.0, lam=60, mu=20, c=4) == pytest.approx(erlang_c(4, 3.0))
+
+
+def test_wait_tail_integrates_to_mean_wait():
+    # E[Wq] = integral of P(Wq > t) dt (trapezoid rule; the tail is negligible beyond 2 s)
+    lam, mu, c = 60.0, 20.0, 4
+    dt, n = 1e-4, 20000
+    values = [wait_tail(i * dt, lam, mu, c) for i in range(n + 1)]
+    area = (sum(values) - (values[0] + values[-1]) / 2) * dt
+    assert area == pytest.approx(mean_wait(lam, mu, c), rel=1e-3)
