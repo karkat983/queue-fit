@@ -4,9 +4,6 @@ Notation follows Harchol-Balter (2013), ch. 14:
     a   = lam / mu          offered load, in "busy servers"
     rho = lam / (c * mu)    per-server utilisation; the queue is stable only if rho < 1
 """
-import math
-
-
 def utilisation(lam: float, mu: float, c: int) -> float:
     return lam / (c * mu)
 
@@ -18,13 +15,28 @@ def check_stable(lam: float, mu: float, c: int) -> None:
         raise ValueError(f"unstable: rho = {utilisation(lam, mu, c):.3f} >= 1")
 
 
+def erlang_b(c: int, a: float) -> float:
+    """Blocking probability of an M/M/c/c loss system, by the standard stable recursion
+
+        B(0) = 1,   B(k) = a B(k-1) / (k + a B(k-1)),
+
+    which never forms a**c or c! and so does not overflow for large c.
+    """
+    b = 1.0
+    for k in range(1, c + 1):
+        b = a * b / (k + a * b)
+    return b
+
+
 def erlang_c(c: int, a: float) -> float:
-    """Probability that an arriving job has to wait (all c servers busy)."""
+    """Probability that an arriving job has to wait (all c servers busy).
+
+    Computed from Erlang B: C = c B / (c - a (1 - B)).
+    """
     if a >= c:
         raise ValueError(f"unstable: offered load a = {a} >= c = {c}")
-    top = a ** c / math.factorial(c) * c / (c - a)
-    bottom = sum(a ** k / math.factorial(k) for k in range(c)) + top
-    return top / bottom
+    b = erlang_b(c, a)
+    return c * b / (c - a * (1 - b))
 
 
 def mean_wait(lam: float, mu: float, c: int) -> float:
