@@ -109,3 +109,20 @@ def response_quantile(p: float, lam: float, mu: float, c: int) -> float:
         if hi - lo < 1e-12 * hi:
             break
     return (lo + hi) / 2
+
+
+def allen_cunneen_wait(lam: float, mu: float, c: int, ca2: float = 1.0, cs2: float = 1.0) -> float:
+    """Mean queueing delay of a G/G/c queue by the Allen-Cunneen approximation:
+
+        E[Wq] ~ E[Wq]_{M/M/c} * (ca^2 + cs^2) / 2
+
+    ca2, cs2 are the squared coefficients of variation of inter-arrival and service times
+    (1 for exponential, 0 for constant). Exact for M/M/c; good for moderate-to-high load.
+    """
+    if ca2 < 0 or cs2 < 0:
+        raise ValueError("squared coefficients of variation must be >= 0")
+    return mean_wait(lam, mu, c) * (ca2 + cs2) / 2
+
+
+def allen_cunneen_response(lam: float, mu: float, c: int, ca2: float = 1.0, cs2: float = 1.0) -> float:
+    return allen_cunneen_wait(lam, mu, c, ca2, cs2) + 1 / mu
