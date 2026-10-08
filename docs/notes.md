@@ -54,3 +54,15 @@ the constant-delay endpoint is effectively deterministic: an M/M/c model would o
 queueing delay roughly twofold (Allen-Cunneen factor (ca² + cs²)/2), and M/D/c is the
 better-matched model for this mode. The exponential mode (client-drawn delays) is what tests
 M/M/c itself.
+
+## 2026-10-09: warm-up excluded; k6 sees a shorter service time
+
+`load/test.js` now runs a 10 s warm-up scenario at the target rate before the measured `main`
+scenario; only `main` is summarised (k6 sub-metrics `...{scenario:main}`). Because k6 computes a
+sub-metric's *rate* over the whole test, the parser derives throughput as main-scenario count /
+main duration.
+
+A 20 req/s check run gave p50 = 51.8 ms, about 6 ms below the 57.8 ms measured with sequential
+`urllib` requests. k6 reuses keep-alive connections while the sequential script opens a new TCP
+connection per request, so the connection set-up was part of the earlier "service time". The fit
+therefore estimates μ from low-load k6 runs, which use the same client behaviour as the sweep.

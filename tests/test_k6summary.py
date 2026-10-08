@@ -35,3 +35,21 @@ def test_dropped_and_failed_are_read_when_present():
     assert row["dropped"] == 7
     assert row["failed"] == 3
     assert row["error_rate"] == pytest.approx(0.03)
+
+
+WARMUP_FIXTURE = pathlib.Path(__file__).parent / "fixtures" / "k6_summary_warmup.json"
+
+
+def test_warmup_run_uses_main_scenario_only():
+    # 5 s warm-up + 10 s main at 20 req/s: 301 requests in total, ~201 in the main scenario
+    summary = load_summary(WARMUP_FIXTURE)
+    row = parse_summary(summary, main_duration_s=10)
+    assert row["requests"] == 201
+    assert row["throughput_rps"] == pytest.approx(20.1)
+    assert row["duration_s"] == 10
+    assert summary["metrics"]["http_reqs"]["values"]["count"] == 301
+
+
+def test_warmup_run_requires_main_duration():
+    with pytest.raises(ValueError, match="main_duration_s"):
+        parse_summary(load_summary(WARMUP_FIXTURE))

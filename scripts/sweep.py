@@ -22,6 +22,17 @@ from src.k6summary import FIELDS, load_summary, parse_summary  # noqa: E402
 RUN_FIELDS = ["workers", "endpoint", "target_rps", "rep"] + FIELDS
 
 
+def seconds(duration: str) -> float:
+    """k6 duration string ("60s", "2m", "1m30s") to seconds."""
+    import re
+
+    parts = re.findall(r"(\d+(?:\.\d+)?)(ms|s|m|h)", duration)
+    if not parts or "".join(n + u for n, u in parts) != duration:
+        raise ValueError(f"unsupported duration {duration!r}")
+    scale = {"ms": 0.001, "s": 1, "m": 60, "h": 3600}
+    return sum(float(n) * scale[u] for n, u in parts)
+
+
 def append_row(path: pathlib.Path, row: dict) -> None:
     new = not path.exists()
     with open(path, "a", newline="") as f:
@@ -72,7 +83,7 @@ def main() -> None:
                 print(result.stderr, file=sys.stderr)
                 raise SystemExit(f"k6 failed at rate {rate}")
             row = {"workers": svc["workers"], "endpoint": svc["endpoint"], "target_rps": rate, "rep": rep}
-            row.update(parse_summary(load_summary(out)))
+            row.update(parse_summary(load_summary(out), main_duration_s=seconds(args.duration)))
             append_row(out_dir / "runs.csv", row)
 
 
