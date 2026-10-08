@@ -11,6 +11,20 @@ def utilisation(lam: float, mu: float, c: int) -> float:
     return lam / (c * mu)
 
 
+def capacity(mu: float, c: int) -> float:
+    """Maximum sustainable arrival rate, c * mu (the rate at which rho reaches 1)."""
+    return c * mu
+
+
+def rate_at(rho: float, mu: float, c: int) -> float:
+    """Arrival rate that gives per-server utilisation rho; used to build load grids."""
+    return rho * capacity(mu, c)
+
+
+def is_stable(lam: float, mu: float, c: int) -> bool:
+    return lam >= 0 and mu > 0 and c >= 1 and utilisation(lam, mu, c) < 1
+
+
 def check_stable(lam: float, mu: float, c: int) -> None:
     if lam < 0 or mu <= 0 or c < 1:
         raise ValueError(f"need lam >= 0, mu > 0, c >= 1 (got lam={lam}, mu={mu}, c={c})")

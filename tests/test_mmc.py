@@ -3,10 +3,13 @@ import math
 import pytest
 
 from src.mmc import (
+    capacity,
     erlang_b,
     erlang_c,
+    is_stable,
     mean_response,
     mean_wait,
+    rate_at,
     response_quantile,
     response_tail,
     utilisation,
@@ -124,3 +127,23 @@ def test_p95_rises_steeply_near_saturation():
     p95 = [response_quantile(0.95, rho * c * mu, mu, c) for rho in (0.5, 0.8, 0.95)]
     assert p95[0] < p95[1] < p95[2]
     assert p95[2] > 4 * p95[0]
+
+
+def test_capacity_and_rate_at():
+    assert capacity(mu=17.7, c=4) == pytest.approx(70.8)
+    assert rate_at(0.5, mu=20, c=4) == pytest.approx(40)
+    assert utilisation(rate_at(0.83, mu=20, c=4), mu=20, c=4) == pytest.approx(0.83)
+
+
+@pytest.mark.parametrize("lam, mu, c, stable", [
+    (79.9, 20, 4, True), (80, 20, 4, False), (0, 20, 4, True), (-1, 20, 4, False), (10, 0, 4, False),
+    (10, 20, 0, False),
+])
+def test_is_stable(lam, mu, c, stable):
+    assert is_stable(lam, mu, c) is stable
+
+
+@pytest.mark.parametrize("lam, mu, c", [(-1, 20, 4), (10, 0, 4), (10, 20, 0)])
+def test_invalid_parameters_raise(lam, mu, c):
+    with pytest.raises(ValueError, match="need"):
+        mean_wait(lam, mu, c)
