@@ -147,3 +147,17 @@ def test_is_stable(lam, mu, c, stable):
 def test_invalid_parameters_raise(lam, mu, c):
     with pytest.raises(ValueError, match="need"):
         mean_wait(lam, mu, c)
+
+
+@pytest.mark.parametrize("fn", [
+    lambda lam: erlang_c(4, lam / 20),
+    lambda lam: mean_wait(lam, 20, 4),
+    lambda lam: mean_response(lam, 20, 4),
+    lambda lam: wait_tail(0.1, lam, 20, 4),
+    lambda lam: response_tail(0.1, lam, 20, 4),
+    lambda lam: response_quantile(0.95, lam, 20, 4),
+])
+@pytest.mark.parametrize("lam", [80.0, 120.0])
+def test_every_formula_rejects_rho_at_or_above_one(fn, lam):
+    with pytest.raises(ValueError, match="unstable"):
+        fn(lam)
