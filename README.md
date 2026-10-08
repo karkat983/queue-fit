@@ -18,7 +18,15 @@ Load tests show latency staying flat and then shooting up, but the point where t
 | Predicted vs measured knee | — |
 
 ## Run it
-*Planned.*
+Requires Docker and k6.
+```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+WORKERS=4 docker compose up -d                  # httpbin with 4 sync workers on :8080
+k6 run -e RATE=40 load/test.js                  # one load level -> results/raw/rate40.json
+pytest                                          # M/M/c model tests
+```
+The rate sweep, model fit and plots are *planned*. The load test has not been run yet.
 
 ## What I learned
 *Planned.*
