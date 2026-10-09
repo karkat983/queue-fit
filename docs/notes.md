@@ -73,3 +73,43 @@ A 60 s k6 run at 5 req/s (10 s warm-up, 300 measured requests, 0 errors) gave la
 min 51.9 / mean 55.1 / p50 54.8 / p95 57.8 / max 62.4 ms. The sweep grid now uses
 **55.1 ms -> mu = 18.1/s per worker, capacity 72.6/s with 4 workers**, and every rate is run
 for a 10 s warm-up plus a 60 s measured window.
+
+## 2026-10-09: first full sweep, c = 4, constant service (`results/sweep_c4_constant.csv`)
+
+13 arrival rates (10%-110% of the estimated 72.6/s capacity) x 3 repetitions in shuffled order,
+10 s warm-up + 60 s measured per run, k6 open model, `/delay/0.05`. 39 runs, 0 failed requests.
+Medians over the three repetitions:
+
+| Target rate (/s) | Throughput | p50 (ms) | p95 (ms) | p95 range over reps | p99 (ms) |
+|---|---|---|---|---|---|
+| 7.3 | 7.3 | 55.8 | 61.4 | 61.3-62.3 | 61.6 |
+| 14.5 | 14.5 | 54.2 | 57.1 | 56.3-61.3 | 59.4 |
+| 21.8 | 21.8 | 51.9 | 53.7 | 52.7-54.2 | 55.4 |
+| 29.0 | 29.0 | 54.6 | 59.0 | 55.4-59.0 | 59.6 |
+| 36.3 | 36.3 | 55.1 | 57.2 | 56.0-57.5 | 57.9 |
+| 43.6 | 43.6 | 51.8 | 53.8 | 53.6-54.3 | 54.2 |
+| 50.8 | 50.8 | 52.9 | 55.9 | 53.9-56.2 | 56.8 |
+| 58.1 | 58.1 | 52.0 | 53.4 | 53.4-53.7 | 54.4 |
+| 61.7 | 61.7 | 51.5 | 52.5 | 52.3-52.8 | 54.9 |
+| 65.3 | 65.3 | 51.8 | 54.0 | 53.5-56.2 | 76.1 |
+| 69.0 | 69.0 | 51.7 | 53.1 | 52.9-53.8 | 59.0 |
+| 72.6 | 72.6 | 52.0 | 55.8 | 53.4-75.7 | 92.3 |
+| 79.9 | 79.6 | 831.9 | 1158.1 | 1030.7-1266.8 | 1202.5 |
+
+What this shows:
+
+1. **The knee is a cliff.** Latency is flat at ~52-56 ms up to 72.6/s and jumps ~20x at 79.9/s,
+   where the queue grows for the whole minute (throughput still matches the offered rate because
+   k6 keeps starting requests; latency is what absorbs the overload). With evenly spaced arrivals
+   (ca² ~ 0) and near-constant service (cs² = 0.004) there is almost nothing to queue below
+   capacity: this is close to a D/D/c system, whose waiting time is zero until rho reaches 1.
+   M/M/c would predict a smooth, early rise that this curve does not have.
+2. **The service gets faster under load.** p50 falls from ~56 ms at 7/s to ~51.5 ms above 40/s.
+   At low rates k6's connections sit idle between requests (and the CPU may clock down), so each
+   request pays a little set-up cost. The true capacity is therefore nearer 4 / 0.0518 = 77/s than
+   the 72.6/s estimated from the low-load run, and the grid has no point between 72.6 and 79.9,
+   exactly where the cliff is. Finer rates near capacity are needed for the knee fit.
+3. **The first sign of trouble is the tail.** p99 starts rising at 65-72.6/s (76-92 ms) while p50
+   is still flat, and one 72.6/s repetition had p95 = 75.7 ms.
+4. k6 reported 49 dropped iterations, all in the overloaded 79.9/s runs (the VU pool ran out
+   while requests waited), so the client was not the bottleneck anywhere below capacity.
