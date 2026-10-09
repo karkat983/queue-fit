@@ -64,9 +64,10 @@ def append_row(path: pathlib.Path, row: dict) -> None:
 
 
 def k6_command(base_url: str, rate: float, duration: str, warmup: str, out: pathlib.Path,
-               service: str = "constant") -> list[str]:
+               service: str = "constant", timeout: str = "30s") -> list[str]:
     return [
         "k6", "run", "-q",
+        "-e", f"TIMEOUT={timeout}",
         "-e", f"BASE_URL={base_url}",
         "-e", f"RATE={rate:g}",
         "-e", f"DURATION={duration}",
@@ -95,13 +96,20 @@ def main() -> None:
     for rep, rate in run_order(args.rates, args.reps, cfg["sweep"].get("order_seed", 0)):
         out = out_dir / f"c{svc['workers']}_{svc['service']}_rate{rate:g}_rep{rep}.json"
         cmd = k6_command(
-            svc["base_url"], rate, args.duration, cfg["sweep"]["warmup"], out, svc["service"]
+            svc["base_url"], rate, args.duration, cfg["sweep"]["warmup"], out, svc["service"],
+            cfg["sweep"]["request_timeout"],
         )
         if args.dry_run:
             print(" ".join(cmd))
             continue
         with Sampler(cfg["service"]["container"], out.with_suffix(".docker.jsonl")) as sampler:
-            result = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True)
+            # A wedged k6 must not stall the sweep: allow the run, the warm-up and a margin.
+            limit = seconds(args.duration) + seconds(cfg["sweep"]["warmup"]) + 120
+            try:
+                result = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=limit)
+            except subprocess.TimeoutExpired:
+                print(f"rep {rep} rate={rate:g}/s: k6 timed out after {limit:.0f}s, skipped", flush=True)
+                continue
         line = result.stdout.strip().splitlines()[-1] if result.stdout.strip() else ""
         print(f"rep {rep} {line}", flush=True)
         if result.returncode not in (0, 99):    # 99 = thresholds crossed; still a valid run

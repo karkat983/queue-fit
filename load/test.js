@@ -17,6 +17,7 @@ const WARMUP = __ENV.WARMUP || '10s';
 const SERVICE = __ENV.SERVICE || 'constant';        // constant | exponential
 const MEAN = parseFloat(__ENV.MEAN || '0.05');      // mean delay asked of the server, seconds
 const OUT = __ENV.OUT || `results/raw/rate${RATE}.json`;
+const TIMEOUT = __ENV.TIMEOUT || '30s';              // a request still waiting after this counts as failed
 
 // k6 rates are integers per timeUnit, so express the rate per minute for fractional values.
 const PER_MINUTE = Math.round(RATE * 60);
@@ -58,7 +59,7 @@ function delaySeconds() {
 }
 
 export default function () {
-  const res = http.get(`${BASE_URL}/delay/${delaySeconds().toFixed(4)}`, { timeout: '60s' });
+  const res = http.get(`${BASE_URL}/delay/${delaySeconds().toFixed(4)}`, { timeout: TIMEOUT });
   check(res, { 'status 200': (r) => r.status === 200 });
 }
 

@@ -48,3 +48,9 @@ def test_append_row_writes_header_once(tmp_path):
     sweep.append_row(path, row)
     lines = path.read_text().splitlines()
     assert len(lines) == 3 and lines[0].split(",") == sweep.RUN_FIELDS
+
+
+def test_k6_command_passes_timeout_and_service():
+    cmd = sweep.k6_command("http://x", 12.5, "60s", "10s", pathlib.Path("o.json"), "exponential", "5s")
+    env = [cmd[i + 1] for i, part in enumerate(cmd) if part == "-e"]
+    assert "TIMEOUT=5s" in env and "SERVICE=exponential" in env and "RATE=12.5" in env

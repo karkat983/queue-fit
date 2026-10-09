@@ -14,6 +14,7 @@ sweep:
   utilisations: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.85, 0.9, 0.95, 1.0, 1.1]
   duration: 60s                 # measured window per rate (main scenario)
   warmup: 10s                   # unmeasured warm-up at the same rate before each window
+  request_timeout: 30s          # a request still waiting after this counts as failed
   repetitions: 3
   order_seed: 0                 # rates run in a fresh shuffled order each repetition
   out_dir: results/raw
