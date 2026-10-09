@@ -27,6 +27,18 @@ CLIENT_FIELDS = ["client_load1", "client_cores"]
 RUN_FIELDS = ["workers", "service", "target_rps", "rep"] + FIELDS + SERVER_FIELDS + CLIENT_FIELDS + ["status"]
 
 
+def booted_workers(container: str) -> int | None:
+    """Gunicorn workers the running container booted (from its logs), or None if unknown."""
+    try:
+        logs = subprocess.run(["docker", "logs", container], capture_output=True, text=True, timeout=20)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    text = logs.stdout + logs.stderr
+    if "Booting worker" not in text:
+        return None
+    return text.count("Booting worker")
+
+
 def run_order(rates: list[float], reps: int, seed: int = 0) -> list[tuple[int, float]]:
     """(rep, rate) pairs: every rate once per repetition, in a fresh shuffled order each time,
     so slow drift in the machine (thermals, background load) does not line up with the rate."""
@@ -86,14 +98,23 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    grid = rate_grid(cfg["sweep"]["service_time_s"], cfg["service"]["workers"], cfg["sweep"]["utilisations"])
-    parser.add_argument("--rates", type=float, nargs="+", default=grid)
+    parser.add_argument("--rates", type=float, nargs="+")
     parser.add_argument("--reps", type=int, default=cfg["sweep"]["repetitions"])
     parser.add_argument("--duration", default=cfg["sweep"]["duration"])
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--workers", type=int, help="server count of the running container "
+                        "(default: service.workers); the rate grid scales with it")
     args = parser.parse_args()
 
     svc = cfg["service"]
+    if args.workers:
+        svc["workers"] = args.workers
+    running = booted_workers(svc["container"])
+    if not args.dry_run and running is not None and running != svc["workers"]:
+        raise SystemExit(f"container runs {running} workers but the sweep expects {svc['workers']} "
+                         f"(restart with WORKERS={svc['workers']} docker compose up -d)")
+    if args.rates is None:
+        args.rates = rate_grid(cfg["sweep"]["service_time_s"], svc["workers"], cfg["sweep"]["utilisations"])
     out_dir = resolve(cfg["sweep"]["out_dir"])
     out_dir.mkdir(parents=True, exist_ok=True)
     for rep, rate in run_order(args.rates, args.reps, cfg["sweep"].get("order_seed", 0)):

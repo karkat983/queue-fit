@@ -113,3 +113,39 @@ What this shows:
    is still flat, and one 72.6/s repetition had p95 = 75.7 ms.
 4. k6 reported 49 dropped iterations, all in the overloaded 79.9/s runs (the VU pool ran out
    while requests waited), so the client was not the bottleneck anywhere below capacity.
+
+## 2026-10-09: sweep c = 2, constant service (`results/sweep_c2_constant.csv`)
+
+`WORKERS=2`, same utilisation grid (capacity estimate 2 x 18.1 = 36.3/s), 3 repetitions in
+shuffled order, 10 s warm-up + **40 s** measured per run (shorter than c = 4's 60 s to keep the
+secondary sweeps under 35 minutes each; at >= 3.6 req/s that is still >= 144 requests per run).
+39 runs, 0 failed requests; `classify_run`: 36 ok, 3 overloaded (all at 39.9/s).
+
+| Target (/s) | p50 (ms) | p95 (ms) | p95 range | p99 (ms) | server CPU % |
+|---|---|---|---|---|---|
+| 3.6 | 54.1 | 57.2 | 56.7-63.4 | 57.4 | 0.4 |
+| 7.3 | 54.0 | 57.3 | 56.5-57.7 | 57.8 | 0.8 |
+| 10.9 | 53.7 | 56.6 | 56.6-61.2 | 57.9 | 0.9 |
+| 14.5 | 53.6 | 56.9 | 56.8-61.1 | 58.0 | 1.2 |
+| 18.1 | 53.6 | 56.4 | 56.2-56.6 | 57.0 | 1.3 |
+| 21.8 | 52.0 | 53.4 | 52.3-54.0 | 54.7 | 1.6 |
+| 25.4 | 52.6 | 54.6 | 54.1-56.5 | 57.2 | 1.4 |
+| 29.0 | 53.8 | 56.0 | 55.1-57.0 | 60.0 | 2.2 |
+| 30.9 | 53.8 | 55.6 | 55.5-55.8 | 56.2 | 1.7 |
+| 32.7 | 54.5 | 57.2 | 55.9-98.3 | 141.1 | 2.7 |
+| 34.5 | 54.3 | 56.2 | 56.0-56.2 | 57.1 | 2.0 |
+| 36.3 | 54.4 | 56.2 | 56.0-57.6 | 61.7 | 2.0 |
+| 39.9 | 736.7 | 1065.7 | 1010.1-1189.7 | 1108.8 | 2.0 |
+
+Same shape as c = 4: flat to 100% of the estimated capacity, then a cliff at 110%. Two new
+observations:
+
+- **Server CPU is tiny** (0.4-2.7% of one core, from `docker stats`) and does not track load the
+  way utilisation does: the workers are busy *sleeping*. CPU is therefore not a usable proxy for
+  rho on this endpoint; worker occupancy (rate x service time / c) is.
+- One 32.7/s repetition had p95 = 98 ms and p99 = 141 ms, a transient tail spike well below
+  capacity. Shuffled repetitions make such one-offs visible as outliers instead of shifting a
+  whole curve.
+
+The client machine's 1-minute load average stayed at 2.2-3.1 on 8 cores, so k6 was never short of
+CPU.
