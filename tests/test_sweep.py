@@ -44,6 +44,7 @@ def test_append_row_refuses_a_file_with_other_columns(tmp_path):
 def test_append_row_writes_header_once(tmp_path):
     path = tmp_path / "runs.csv"
     row = dict.fromkeys(sweep.RUN_FIELDS, 1)
+    assert sweep.RUN_FIELDS[-1] == "status"
     sweep.append_row(path, row)
     sweep.append_row(path, row)
     lines = path.read_text().splitlines()

@@ -19,9 +19,10 @@ from src.config import load_config, resolve  # noqa: E402
 from src.dockerstats import Sampler, summarise  # noqa: E402
 from src.grid import rate_grid  # noqa: E402
 from src.k6summary import FIELDS, load_summary, parse_summary  # noqa: E402
+from src.runs import classify_run  # noqa: E402
 
 SERVER_FIELDS = ["server_cpu_pct", "server_mem_mb", "cpu_samples"]
-RUN_FIELDS = ["workers", "service", "target_rps", "rep"] + FIELDS + SERVER_FIELDS
+RUN_FIELDS = ["workers", "service", "target_rps", "rep"] + FIELDS + SERVER_FIELDS + ["status"]
 
 
 def run_order(rates: list[float], reps: int, seed: int = 0) -> list[tuple[int, float]]:
@@ -118,6 +119,12 @@ def main() -> None:
         row = {"workers": svc["workers"], "service": svc["service"], "target_rps": rate, "rep": rep}
         row.update(parse_summary(load_summary(out), main_duration_s=seconds(args.duration)))
         row.update(summarise(sampler.readings, skip_s=seconds(cfg["sweep"]["warmup"])))
+        service_ms = cfg["sweep"]["service_time_s"] * 1000
+        rho = rate * cfg["sweep"]["service_time_s"] / svc["workers"]
+        row["status"] = classify_run(row, service_ms, rho)
+        if row["status"] == "client_limited":
+            print(f"  WARNING: k6 dropped {row['dropped']} arrivals at rho ~ {rho:.2f}; "
+                  "the client, not the server, limited this run", flush=True)
         append_row(out_dir / "runs.csv", row)
 
 
