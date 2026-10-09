@@ -192,3 +192,13 @@ service time of ~50.5 ms would close most of the gap). Because the excess load i
 capacity, a 1-2% error in the service rate changes the growth rate by half. This is the
 knife-edge the fitting phase has to handle: near the knee, latency is extremely sensitive to the
 exact service rate, so mu must be estimated from high-load runs, not only from low-load ones.
+
+## 2026-10-09: sanity plots (`scripts/sanity_plots.py`)
+
+- `results/sanity_p95.png`: p95 against estimated utilisation for c = 2, 4, 8 on a log scale.
+  All three curves are flat at 52-61 ms from rho = 0.1 to 1.0 and jump 10-20x at rho = 1.1.
+  Plotted against utilisation rather than rate, the three server counts collapse onto one
+  curve: the knee is a property of utilisation, as queueing theory says.
+- `results/sanity_throughput.png`: completed requests/s against offered rate. Every point is on
+  the diagonal, including the overloaded ones (k6 keeps starting requests; the backlog shows up
+  as latency, not as lost throughput), so no run was limited by the client.
