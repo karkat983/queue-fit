@@ -149,3 +149,46 @@ observations:
 
 The client machine's 1-minute load average stayed at 2.2-3.1 on 8 cores, so k6 was never short of
 CPU.
+
+## 2026-10-09: sweep c = 8, constant service (`results/sweep_c8_constant.csv`)
+
+`WORKERS=8`, capacity estimate 8 x 18.1 = 145.2/s, 3 repetitions, 10 s warm-up + 40 s measured.
+39 runs, 0 failed, 0 dropped; 36 ok, 3 overloaded (all at 159.7/s).
+
+| Target (/s) | p50 (ms) | p95 (ms) | p95 range | p99 (ms) | server CPU % |
+|---|---|---|---|---|---|
+| 14.5 | 54.7 | 61.3 | 61.2-61.4 | 61.5 | 1.0 |
+| 29.0 | 54.3 | 57.3 | 57.1-57.3 | 59.1 | 2.0 |
+| 43.6 | 51.4 | 53.0 | 52.9-53.0 | 53.8 | 2.8 |
+| 58.1 | 52.1 | 53.4 | 53.4-53.4 | 53.9 | 3.9 |
+| 72.6 | 52.0 | 53.7 | 53.7-54.0 | 55.5 | 4.6 |
+| 87.1 | 51.3 | 52.7 | 52.6-52.8 | 53.3 | 5.5 |
+| 101.6 | 51.4 | 51.8 | 51.7-51.8 | 52.3 | 6.2 |
+| 116.2 | 51.4 | 52.3 | 52.2-52.3 | 53.0 | 6.7 |
+| 123.4 | 51.4 | 51.8 | 51.7-51.8 | 52.1 | 6.8 |
+| 130.7 | 51.2 | 52.2 | 52.2-52.3 | 53.1 | 6.8 |
+| 137.9 | 51.3 | 51.7 | 51.6-51.7 | 52.1 | 7.7 |
+| 145.2 | 51.3 | 52.0 | 51.9-52.0 | 52.2 | 7.5 |
+| 159.7 | 402.5 | 638.8 | 603.5-660.5 | 671.2 | 7.1 |
+
+With eight workers the curve is flatter still: p95 stays within 1 ms of the median from 44/s to
+145/s, then jumps 12x. Server CPU rises with load here (1% -> 7.7%) because Flask/WSGI overhead
+per request is now spread over more concurrent requests, but it stays far below any CPU limit.
+
+### A fluid check of the overload points
+
+Above capacity a queue grows at (lambda - c mu) per second, so t seconds into a run (warm-up
+included) a new request waits about (lambda - c mu) t / (c mu). Averaging that over the measured
+window, with the service time seen under load (~51.4 ms, so c mu = c / 0.0514):
+
+| c | lambda | c mu | growth (/s) | run length | wait at end | mean wait over window | measured p50 |
+|---|---|---|---|---|---|---|---|
+| 4 | 79.9 | 77.8 | 2.1 | 10 + 60 s | ~1.9 s | ~1.1 s | 0.83 s |
+| 8 | 159.7 | 155.6 | 4.1 | 10 + 40 s | ~1.3 s | ~0.8 s | 0.40 s |
+
+Both measured medians are below the fluid prediction, by ~25% at c = 4 and ~50% at c = 8. The
+simplest explanation is that the service is a little faster under overload than 51.4 ms (a
+service time of ~50.5 ms would close most of the gap). Because the excess load is only 2-3% of
+capacity, a 1-2% error in the service rate changes the growth rate by half. This is the
+knife-edge the fitting phase has to handle: near the knee, latency is extremely sensitive to the
+exact service rate, so mu must be estimated from high-load runs, not only from low-load ones.
