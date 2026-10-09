@@ -9,6 +9,7 @@ appended to results/raw/runs.csv.
 """
 import argparse
 import csv
+import os
 import pathlib
 import subprocess
 import sys
@@ -22,7 +23,8 @@ from src.k6summary import FIELDS, load_summary, parse_summary  # noqa: E402
 from src.runs import classify_run  # noqa: E402
 
 SERVER_FIELDS = ["server_cpu_pct", "server_mem_mb", "cpu_samples"]
-RUN_FIELDS = ["workers", "service", "target_rps", "rep"] + FIELDS + SERVER_FIELDS + ["status"]
+CLIENT_FIELDS = ["client_load1", "client_cores"]
+RUN_FIELDS = ["workers", "service", "target_rps", "rep"] + FIELDS + SERVER_FIELDS + CLIENT_FIELDS + ["status"]
 
 
 def run_order(rates: list[float], reps: int, seed: int = 0) -> list[tuple[int, float]]:
@@ -119,6 +121,10 @@ def main() -> None:
         row = {"workers": svc["workers"], "service": svc["service"], "target_rps": rate, "rep": rep}
         row.update(parse_summary(load_summary(out), main_duration_s=seconds(args.duration)))
         row.update(summarise(sampler.readings, skip_s=seconds(cfg["sweep"]["warmup"])))
+        # 1-minute load average of the machine running k6, sampled as the run ends (it covers the
+        # measured window). Near or above the core count, the client itself was competing for CPU.
+        row["client_load1"] = round(os.getloadavg()[0], 2)
+        row["client_cores"] = os.cpu_count()
         service_ms = cfg["sweep"]["service_time_s"] * 1000
         rho = rate * cfg["sweep"]["service_time_s"] / svc["workers"]
         row["status"] = classify_run(row, service_ms, rho)
