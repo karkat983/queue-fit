@@ -16,6 +16,7 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from src.config import load_config, resolve  # noqa: E402
+from src.dockerstats import Sampler  # noqa: E402
 from src.grid import rate_grid  # noqa: E402
 from src.k6summary import FIELDS, load_summary, parse_summary  # noqa: E402
 
@@ -93,7 +94,8 @@ def main() -> None:
         if args.dry_run:
             print(" ".join(cmd))
             continue
-        result = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True)
+        with Sampler(cfg["service"]["container"], out.with_suffix(".docker.jsonl")):
+            result = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True)
         line = result.stdout.strip().splitlines()[-1] if result.stdout.strip() else ""
         print(f"rep {rep} {line}", flush=True)
         if result.returncode not in (0, 99):    # 99 = thresholds crossed; still a valid run

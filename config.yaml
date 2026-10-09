@@ -3,6 +3,7 @@
 service:
   base_url: http://localhost:8080
   workers: 4                    # ground truth for c; passed to docker compose as WORKERS
+  container: queue-fit-httpbin-1  # sampled with `docker stats` during every run
   mean_delay_s: 0.05            # /delay/<x>: x is constant or Exp(mean) per request (ADR 001)
   service: constant             # constant | exponential
 
