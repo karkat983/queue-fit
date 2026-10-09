@@ -32,3 +32,19 @@ def test_run_order_covers_every_rate_each_rep_in_shuffled_order():
 
 def test_run_order_is_reproducible():
     assert sweep.run_order([1.0, 2.0, 3.0], 2, seed=5) == sweep.run_order([1.0, 2.0, 3.0], 2, seed=5)
+
+
+def test_append_row_refuses_a_file_with_other_columns(tmp_path):
+    path = tmp_path / "runs.csv"
+    path.write_text("old,columns\n1,2\n")
+    with pytest.raises(SystemExit, match="different columns"):
+        sweep.append_row(path, {})
+
+
+def test_append_row_writes_header_once(tmp_path):
+    path = tmp_path / "runs.csv"
+    row = dict.fromkeys(sweep.RUN_FIELDS, 1)
+    sweep.append_row(path, row)
+    sweep.append_row(path, row)
+    lines = path.read_text().splitlines()
+    assert len(lines) == 3 and lines[0].split(",") == sweep.RUN_FIELDS

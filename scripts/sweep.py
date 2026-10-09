@@ -16,11 +16,12 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from src.config import load_config, resolve  # noqa: E402
-from src.dockerstats import Sampler  # noqa: E402
+from src.dockerstats import Sampler, summarise  # noqa: E402
 from src.grid import rate_grid  # noqa: E402
 from src.k6summary import FIELDS, load_summary, parse_summary  # noqa: E402
 
-RUN_FIELDS = ["workers", "service", "target_rps", "rep"] + FIELDS
+SERVER_FIELDS = ["server_cpu_pct", "server_mem_mb", "cpu_samples"]
+RUN_FIELDS = ["workers", "service", "target_rps", "rep"] + FIELDS + SERVER_FIELDS
 
 
 def run_order(rates: list[float], reps: int, seed: int = 0) -> list[tuple[int, float]]:
@@ -50,6 +51,11 @@ def seconds(duration: str) -> float:
 
 def append_row(path: pathlib.Path, row: dict) -> None:
     new = not path.exists()
+    if not new:
+        with open(path, newline="") as f:
+            header = next(csv.reader(f), [])
+        if header != RUN_FIELDS:
+            raise SystemExit(f"{path} has different columns; move it aside before sweeping")
     with open(path, "a", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=RUN_FIELDS)
         if new:
@@ -94,7 +100,7 @@ def main() -> None:
         if args.dry_run:
             print(" ".join(cmd))
             continue
-        with Sampler(cfg["service"]["container"], out.with_suffix(".docker.jsonl")):
+        with Sampler(cfg["service"]["container"], out.with_suffix(".docker.jsonl")) as sampler:
             result = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True)
         line = result.stdout.strip().splitlines()[-1] if result.stdout.strip() else ""
         print(f"rep {rep} {line}", flush=True)
@@ -103,6 +109,7 @@ def main() -> None:
             raise SystemExit(f"k6 failed at rate {rate}")
         row = {"workers": svc["workers"], "service": svc["service"], "target_rps": rate, "rep": rep}
         row.update(parse_summary(load_summary(out), main_duration_s=seconds(args.duration)))
+        row.update(summarise(sampler.readings, skip_s=seconds(cfg["sweep"]["warmup"])))
         append_row(out_dir / "runs.csv", row)
 
 
